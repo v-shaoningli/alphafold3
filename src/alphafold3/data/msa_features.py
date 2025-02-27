@@ -165,7 +165,7 @@ def extract_msa_features(
 # `tr|A0A146SKV9|A0A146SKV9_FUNHE`.
 _UNIPROT_ENTRY_NAME_REGEX = re.compile(
     # UniProtKB TrEMBL or SwissProt database.
-    r'(?:tr|sp)\|'
+    r'(?:cb|tr|sp)\|'
     # A primary accession number of the UniProtKB entry.
     r'(?:[A-Z0-9]{6,10})'
     # Occasionally there is an isoform suffix (e.g. _1 or _10) which we ignore.

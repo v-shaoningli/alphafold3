@@ -1,0 +1,7 @@
+mmseqs_bin_path: /path/to/envs/bin/mmseqs
+colabsearch_bin_path: /path/to/envs/bin/colabfold_search
+colabfold_db_dir: /path/to/colabfold_db
+db1: uniref30_2302_db
+db3: colabfold_envdb_202108_db
+db_load_mode: 2
+threads: 32
