@@ -46,6 +46,8 @@ The original ColabFold_Search code pairs multimer MSAs and does not provide indi
    mamba activate colabfold
    cd /path/to/colabfold
    pip install -e .
+   # Install mmseqs2 with 15.x version. Higher version may cause issues.
+   mamba install -c conda-forge -c bioconda mmseqs2==15.6f452
    ```
 
 3. **Download and (Optionally) Pin the Database:**
