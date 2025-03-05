@@ -16,6 +16,7 @@ import gzip
 import json
 import logging
 import lzma
+import os
 import pathlib
 import random
 import re
@@ -315,6 +316,14 @@ class ProteinChain:
     unpaired_msa_path = json_dict.get('unpairedMsaPath', None)
     if unpaired_msa and unpaired_msa_path:
       raise ValueError('Only one of unpairedMsa/unpairedMsaPath can be set.')
+    if (
+        unpaired_msa
+        and len(unpaired_msa) < 256
+        and os.path.exists(unpaired_msa)
+    ):
+      raise ValueError(
+          'Set the unpaired MSA path using the "unpairedMsaPath" field.'
+      )
     elif unpaired_msa_path:
       unpaired_msa = _read_file(pathlib.Path(unpaired_msa_path), json_path)
 
@@ -322,6 +331,10 @@ class ProteinChain:
     paired_msa_path = json_dict.get('pairedMsaPath', None)
     if paired_msa and paired_msa_path:
       raise ValueError('Only one of pairedMsa/pairedMsaPath can be set.')
+    if paired_msa and len(paired_msa) < 256 and os.path.exists(paired_msa):
+      raise ValueError(
+          'Set the paired MSA path using the "pairedMsaPath" field.'
+      )
     elif paired_msa_path:
       paired_msa = _read_file(pathlib.Path(paired_msa_path), json_path)
 
@@ -336,6 +349,8 @@ class ProteinChain:
         mmcif_path = raw_template.get('mmcifPath', None)
         if mmcif and mmcif_path:
           raise ValueError('Only one of mmcif/mmcifPath can be set.')
+        if mmcif and len(mmcif) < 256 and os.path.exists(mmcif):
+          raise ValueError('Set the template path using the "mmcifPath" field.')
         if mmcif_path:
           mmcif = _read_file(pathlib.Path(mmcif_path), json_path)
         query_to_template_map = dict(
@@ -525,6 +540,14 @@ class RnaChain:
     unpaired_msa_path = json_dict.get('unpairedMsaPath', None)
     if unpaired_msa and unpaired_msa_path:
       raise ValueError('Only one of unpairedMsa/unpairedMsaPath can be set.')
+    if (
+        unpaired_msa
+        and len(unpaired_msa) < 256
+        and os.path.exists(unpaired_msa)
+    ):
+      raise ValueError(
+          'Set the unpaired MSA path using the "unpairedMsaPath" field.'
+      )
     elif unpaired_msa_path:
       unpaired_msa = _read_file(pathlib.Path(unpaired_msa_path), json_path)
 
@@ -1121,12 +1144,18 @@ class Input:
       if len(bonded_atom_pairs) != len(set(bonded_atom_pairs)):
         raise ValueError(f'Bonds are not unique: {bonded_atom_pairs}')
 
+    user_ccd = raw_json.get('userCCD')
+    if user_ccd and len(user_ccd) < 256 and os.path.exists(user_ccd):
+      raise ValueError(
+          'The contents of the user CCD file must be set instead of its path.'
+      )
+
     return cls(
         name=raw_json['name'],
         chains=chains,
         rng_seeds=[int(seed) for seed in raw_json['modelSeeds']],
         bonded_atom_pairs=bonded_atom_pairs,
-        user_ccd=raw_json.get('userCCD'),
+        user_ccd=user_ccd,
     )
 
   @classmethod

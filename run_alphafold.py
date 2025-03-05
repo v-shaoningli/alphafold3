@@ -270,6 +270,13 @@ _SAVE_EMBEDDINGS = flags.DEFINE_bool(
     False,
     'Whether to save the final trunk single and pair embeddings in the output.',
 )
+_FORCE_OUTPUT_DIR = flags.DEFINE_bool(
+    'force_output_dir',
+    False,
+    'Whether to force the output directory to be used even if it already exists'
+    ' and is non-empty. Useful to set this to True to run the data pipeline and'
+    ' the inference separately, but use the same output directory.',
+)
 
 
 def make_model_config(
@@ -514,28 +521,6 @@ def write_outputs(
       writer.writerows(ranking_scores)
 
 
-@overload
-def process_fold_input(
-    fold_input: folding_input.Input,
-    data_pipeline_config: pipeline.DataPipelineConfig | None,
-    model_runner: None,
-    output_dir: os.PathLike[str] | str,
-    buckets: Sequence[int] | None = None,
-) -> folding_input.Input:
-  ...
-
-
-@overload
-def process_fold_input(
-    fold_input: folding_input.Input,
-    data_pipeline_config: pipeline.DataPipelineConfig | None,
-    model_runner: ModelRunner,
-    output_dir: os.PathLike[str] | str,
-    buckets: Sequence[int] | None = None,
-) -> Sequence[ResultsForSeed]:
-  ...
-
-
 def replace_db_dir(path_with_db_dir: str, db_dirs: Sequence[str]) -> str:
   """Replaces the DB_DIR placeholder in a path with the given DB_DIR."""
   template = string.Template(path_with_db_dir)
@@ -552,6 +537,32 @@ def replace_db_dir(path_with_db_dir: str, db_dirs: Sequence[str]) -> str:
   return path_with_db_dir
 
 
+@overload
+def process_fold_input(
+    fold_input: folding_input.Input,
+    data_pipeline_config: pipeline.DataPipelineConfig | None,
+    model_runner: None,
+    output_dir: os.PathLike[str] | str,
+    buckets: Sequence[int] | None = None,
+    conformer_max_iterations: int | None = None,
+    force_output_dir: bool = False,
+) -> folding_input.Input:
+  ...
+
+
+@overload
+def process_fold_input(
+    fold_input: folding_input.Input,
+    data_pipeline_config: pipeline.DataPipelineConfig | None,
+    model_runner: ModelRunner,
+    output_dir: os.PathLike[str] | str,
+    buckets: Sequence[int] | None = None,
+    conformer_max_iterations: int | None = None,
+    force_output_dir: bool = False,
+) -> Sequence[ResultsForSeed]:
+  ...
+
+
 def process_fold_input(
     fold_input: folding_input.Input,
     data_pipeline_config: pipeline.DataPipelineConfig | None,
@@ -559,6 +570,7 @@ def process_fold_input(
     output_dir: os.PathLike[str] | str,
     buckets: Sequence[int] | None = None,
     conformer_max_iterations: int | None = None,
+    force_output_dir: bool = False,
 ) -> folding_input.Input | Sequence[ResultsForSeed]:
   """Runs data pipeline and/or inference on a single fold input.
 
@@ -575,6 +587,10 @@ def process_fold_input(
       is more than the largest bucket size.
     conformer_max_iterations: Optional override for maximum number of iterations
       to run for RDKit conformer search.
+    force_output_dir: If True, do not create a new output directory even if the
+      existing one is non-empty. Instead use the existing output directory and
+      potentially overwrite existing files. If False, create a new timestamped
+      output directory instead if the existing one is non-empty.
 
   Returns:
     The processed fold input, or the inference results for each seed.
@@ -587,7 +603,11 @@ def process_fold_input(
   if not fold_input.chains:
     raise ValueError('Fold input has no chains.')
 
-  if os.path.exists(output_dir) and os.listdir(output_dir):
+  if (
+      not force_output_dir
+      and os.path.exists(output_dir)
+      and os.listdir(output_dir)
+  ):
     new_output_dir = (
         f'{output_dir}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}'
     )
@@ -775,6 +795,7 @@ def main(_):
         output_dir=os.path.join(_OUTPUT_DIR.value, fold_input.sanitised_name()),
         buckets=tuple(int(bucket) for bucket in _BUCKETS.value),
         conformer_max_iterations=_CONFORMER_MAX_ITERATIONS.value,
+        force_output_dir=_FORCE_OUTPUT_DIR.value,
     )
     num_fold_inputs += 1
 
