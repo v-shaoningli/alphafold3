@@ -36,7 +36,7 @@ import zstandard as zstd
 BondAtomId: TypeAlias = tuple[str, int, str]
 
 JSON_DIALECT: Final[str] = 'alphafold3'
-JSON_VERSIONS: Final[tuple[int, ...]] = (1, 2)
+JSON_VERSIONS: Final[tuple[int, ...]] = (1, 2, 3)
 JSON_VERSION: Final[int] = JSON_VERSIONS[-1]
 
 ALPHAFOLDSERVER_JSON_DIALECT: Final[str] = 'alphafoldserver'
@@ -1028,6 +1028,7 @@ class Input:
             'sequences',
             'bondedAtomPairs',
             'userCCD',
+            'userCCDPath',
         },
     )
 
@@ -1145,10 +1146,13 @@ class Input:
         raise ValueError(f'Bonds are not unique: {bonded_atom_pairs}')
 
     user_ccd = raw_json.get('userCCD')
+    user_ccd_path = raw_json.get('userCCDPath')
+    if user_ccd and user_ccd_path:
+      raise ValueError('Only one of userCCD/userCCDPath can be set.')
     if user_ccd and len(user_ccd) < 256 and os.path.exists(user_ccd):
-      raise ValueError(
-          'The contents of the user CCD file must be set instead of its path.'
-      )
+      raise ValueError('Set the user CCD path using the "userCCDPath" field.')
+    elif user_ccd_path:
+      user_ccd = _read_file(pathlib.Path(user_ccd_path), json_path)
 
     return cls(
         name=raw_json['name'],
