@@ -193,8 +193,12 @@ _NHMMER_N_CPU = flags.DEFINE_integer(
 _MAX_TEMPLATE_DATE = flags.DEFINE_string(
     'max_template_date',
     '2021-09-30',  # By default, use the date from the AlphaFold 3 paper.
-    'Maximum template release date to consider. Format: YYYY-MM-DD. All '
-    'templates released after this date will be ignored.',
+    'Maximum template release date to consider. Format: YYYY-MM-DD. All'
+    ' templates released after this date will be ignored. Controls also whether'
+    ' to allow use of model coordinates for a chemical component from the CCD'
+    ' if RDKit conformer generation fails and the component does not have ideal'
+    ' coordinates set. Only for components that have been released before this'
+    ' date the model coordinates can be used as a fallback.',
 )
 
 _CONFORMER_MAX_ITERATIONS = flags.DEFINE_integer(
@@ -396,6 +400,7 @@ def predict_structure(
     fold_input: folding_input.Input,
     model_runner: ModelRunner,
     buckets: Sequence[int] | None = None,
+    ref_max_modified_date: datetime.date | None = None,
     conformer_max_iterations: int | None = None,
 ) -> Sequence[ResultsForSeed]:
   """Runs the full inference pipeline to predict structures for each seed."""
@@ -408,6 +413,7 @@ def predict_structure(
       buckets=buckets,
       ccd=ccd,
       verbose=True,
+      ref_max_modified_date=ref_max_modified_date,
       conformer_max_iterations=conformer_max_iterations,
   )
   print(
@@ -490,7 +496,9 @@ def write_outputs(
       sample_dir = os.path.join(output_dir, f'seed-{seed}_sample-{sample_idx}')
       os.makedirs(sample_dir, exist_ok=True)
       post_processing.write_output(
-          inference_result=result, output_dir=sample_dir
+          inference_result=result,
+          output_dir=sample_dir,
+          name=f'{job_name}_seed-{seed}_sample-{sample_idx}',
       )
       ranking_score = float(result.metadata['ranking_score'])
       ranking_scores.append((seed, sample_idx, ranking_score))
@@ -502,7 +510,9 @@ def write_outputs(
       embeddings_dir = os.path.join(output_dir, f'seed-{seed}_embeddings')
       os.makedirs(embeddings_dir, exist_ok=True)
       post_processing.write_embeddings(
-          embeddings=embeddings, output_dir=embeddings_dir
+          embeddings=embeddings,
+          output_dir=embeddings_dir,
+          name=f'{job_name}_seed-{seed}',
       )
 
   if max_ranking_result is not None:  # True iff ranking_scores non-empty.
@@ -515,7 +525,9 @@ def write_outputs(
     )
     # Save csv of ranking scores with seeds and sample indices, to allow easier
     # comparison of ranking scores across different runs.
-    with open(os.path.join(output_dir, 'ranking_scores.csv'), 'wt') as f:
+    with open(
+        os.path.join(output_dir, f'{job_name}_ranking_scores.csv'), 'wt'
+    ) as f:
       writer = csv.writer(f)
       writer.writerow(['seed', 'sample', 'ranking_score'])
       writer.writerows(ranking_scores)
@@ -544,6 +556,7 @@ def process_fold_input(
     model_runner: None,
     output_dir: os.PathLike[str] | str,
     buckets: Sequence[int] | None = None,
+    ref_max_modified_date: datetime.date | None = None,
     conformer_max_iterations: int | None = None,
     force_output_dir: bool = False,
 ) -> folding_input.Input:
@@ -557,6 +570,7 @@ def process_fold_input(
     model_runner: ModelRunner,
     output_dir: os.PathLike[str] | str,
     buckets: Sequence[int] | None = None,
+    ref_max_modified_date: datetime.date | None = None,
     conformer_max_iterations: int | None = None,
     force_output_dir: bool = False,
 ) -> Sequence[ResultsForSeed]:
@@ -569,6 +583,7 @@ def process_fold_input(
     model_runner: ModelRunner | None,
     output_dir: os.PathLike[str] | str,
     buckets: Sequence[int] | None = None,
+    ref_max_modified_date: datetime.date | None = None,
     conformer_max_iterations: int | None = None,
     force_output_dir: bool = False,
 ) -> folding_input.Input | Sequence[ResultsForSeed]:
@@ -585,6 +600,11 @@ def process_fold_input(
       number of tokens. If not None, must be a sequence of at least one integer,
       in strictly increasing order. Will raise an error if the number of tokens
       is more than the largest bucket size.
+    ref_max_modified_date: Optional maximum date that controls whether to allow
+      use of model coordinates for a chemical component from the CCD if RDKit
+      conformer generation fails and the component does not have ideal
+      coordinates set. Only for components that have been released before this
+      date the model coordinates can be used as a fallback.
     conformer_max_iterations: Optional override for maximum number of iterations
       to run for RDKit conformer search.
     force_output_dir: If True, do not create a new output directory even if the
@@ -638,6 +658,7 @@ def process_fold_input(
         fold_input=fold_input,
         model_runner=model_runner,
         buckets=buckets,
+        ref_max_modified_date=ref_max_modified_date,
         conformer_max_iterations=conformer_max_iterations,
     )
     print(f'Writing outputs with {len(fold_input.rng_seeds)} seed(s)...')
@@ -730,9 +751,9 @@ def main(_):
   )
   print('\n' + '\n'.join(notice) + '\n')
 
+  max_template_date = datetime.date.fromisoformat(_MAX_TEMPLATE_DATE.value)
   if _RUN_DATA_PIPELINE.value:
     expand_path = lambda x: replace_db_dir(x, DB_DIR.value)
-    max_template_date = datetime.date.fromisoformat(_MAX_TEMPLATE_DATE.value)
     data_pipeline_config = pipeline.DataPipelineConfig(
         jackhmmer_binary_path=_JACKHMMER_BINARY_PATH.value,
         nhmmer_binary_path=_NHMMER_BINARY_PATH.value,
@@ -794,6 +815,7 @@ def main(_):
         model_runner=model_runner,
         output_dir=os.path.join(_OUTPUT_DIR.value, fold_input.sanitised_name()),
         buckets=tuple(int(bucket) for bucket in _BUCKETS.value),
+        ref_max_modified_date=max_template_date,
         conformer_max_iterations=_CONFORMER_MAX_ITERATIONS.value,
         force_output_dir=_FORCE_OUTPUT_DIR.value,
     )
