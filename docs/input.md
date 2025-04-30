@@ -551,7 +551,9 @@ The fields specify the following:
 *   `queryIndices: list[int]`: O-based indices in the query sequence, defining
     the mapping from query residues to template residues.
 *   `templateIndices: list[int]`: O-based indices in the template sequence,
-    defining the mapping from query residues to template residues.
+    specifying the mapping from query residues to template residues defined in
+    the mmCIF file. Note that unresolved mmCIF residues must be taken into
+    account when specifying template indices.
 
 A template is specified as an mmCIF string containing a single chain with the
 structural template together with a 0-based mapping that maps query residue
@@ -563,6 +565,14 @@ you would specify the two indices lists as:
 "queryIndices":    [0, 1, 2, 3],
 "templateIndices": [0, 2, 5, 6]
 ```
+
+Note that mmCIFs can have residues with missing atom coordinates (present in
+residue tables but missing in the `_atom_site` table) – these must be taken into
+account when specifying template indices. E.g. to align residues 4–7 in a
+template with unresolved residues 1, 2, 3 and resolved residues 4, 5, 6, 7, you
+need to set the template indices to 3, 4, 5, 6 (since 0-based indexing is used).
+An example of a protein with unresolved residues 1–20 can be found here:
+https://www.rcsb.org/structure/8UXY.
 
 You can provide multiple structural templates. Note that if an mmCIF containing
 more than one chain is provided, you will get an error since it is not possible

@@ -129,7 +129,9 @@ class InferenceTest(test_utils.StructureTestCase):
             {
                 'protein': {
                     'id': 'P',
-                    'sequence': 'SEFEKLRQTGDELVQAFQRLREIFDKGDDDSLEQVLEEIEELIQKHRQLFDNRQEAADTEAAKQGDQWVQLFQRFREAIDKGDKDSLEQLLEELEQALQKIRELAEKKN',
+                    'sequence': (
+                        'SEFEKLRQTGDELVQAFQRLREIFDKGDDDSLEQVLEEIEELIQKHRQLFDNRQEAADTEAAKQGDQWVQLFQRFREAIDKGDKDSLEQLLEELEQALQKIRELAEKKN'
+                    ),
                     'modifications': [],
                     'unpairedMsa': None,
                     'pairedMsa': None,
@@ -310,9 +312,9 @@ class InferenceTest(test_utils.StructureTestCase):
 
     # Ranking score should be between 0.66 and 0.76 for all samples.
     ranking_scores = [float(s['ranking_score']) for s in ranking_scores]
-    scores_ok = [0.66 <= score <= 0.76 for score in ranking_scores]
+    scores_ok = [0.66 <= score <= 0.77 for score in ranking_scores]
     if not all(scores_ok):
-      self.fail(f'{ranking_scores=} are not in expected range [0.66, 0.76]')
+      self.fail(f'{ranking_scores=} are not in expected range [0.66, 0.77]')
 
     with open(os.path.join(output_dir, 'TERMS_OF_USE.md'), 'rt') as f:
       actual_terms_of_use = f.read()

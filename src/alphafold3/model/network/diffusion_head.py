@@ -143,7 +143,9 @@ class DiffusionHead(hk.Module):
     pair_embedding = use_conditioning * embeddings['pair']
 
     rel_features = featurization.create_relative_encoding(
-        batch.token_features, max_relative_idx=32, max_relative_chain=2
+        seq_features=batch.token_features,
+        max_relative_idx=32,
+        max_relative_chain=2,
     ).astype(pair_embedding.dtype)
     features_2d = jnp.concatenate([pair_embedding, rel_features], axis=-1)
     pair_cond = hm.Linear(
