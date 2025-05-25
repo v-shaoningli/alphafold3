@@ -415,6 +415,7 @@ class MSA:
       fold_input: folding_input.Input,
       logging_name: str,
       max_paired_sequence_per_species: int,
+      resolve_msa_overlaps: bool = True,
   ) -> Self:
     """Compute the msa features."""
     seen_entities = {}
@@ -508,9 +509,6 @@ class MSA:
       msa_features = unpaired_msa.featurize()
       all_seqs_msa_features = paired_msa.featurize()
 
-      msa_features = data3.fix_features(msa_features)
-      all_seqs_msa_features = data3.fix_features(all_seqs_msa_features)
-
       msa_features = msa_features | {
           f'{k}_all_seq': v for k, v in all_seqs_msa_features.items()
       }
@@ -536,9 +534,10 @@ class MSA:
           nonempty_chain_ids=nonempty_chain_ids,
           max_hits_per_species=max_paired_sequence_per_species,
       )
-      np_chains_list = msa_pairing.deduplicate_unpaired_sequences(
-          np_chains_list
-      )
+      if resolve_msa_overlaps:
+        np_chains_list = msa_pairing.deduplicate_unpaired_sequences(
+            np_chains_list
+        )
 
     # Remove all gapped rows from all seqs.
     nonempty_asym_ids = []

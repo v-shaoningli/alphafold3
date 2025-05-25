@@ -839,14 +839,22 @@ def get_polymer_features(
   Raises:
     ValueError: If the input structure contains more than just a single chain.
   """
-  if len(chain.polymer_auth_asym_id_to_label_asym_id()) != 1:
-    raise ValueError('The structure must be filtered to a single chain.')
-
   if chain.name is None:
-    raise ValueError('The structure must have a name.')
+    raise ValueError('Template structure must have a name.')
 
   if chain.release_date is None:
-    raise ValueError('The structure must have a release date.')
+    raise ValueError(
+        f'Template structure {chain.name} must have a release date. You can do'
+        ' this by setting "_pdbx_audit_revision_history.revision_date" in the'
+        ' template mmCIF to a date in the ISO-8601 format (e.g. 1989-11-17).'
+    )
+
+  num_polymer_chains = len(chain.polymer_auth_asym_id_to_label_asym_id())
+  if num_polymer_chains != 1:
+    raise ValueError(
+        f'Template structure {chain.name} must be filtered to a single polymer'
+        f' chain but got a structure with {num_polymer_chains} polymer chains.'
+    )
 
   auth_chain_id, label_chain_id = next(
       iter(chain.polymer_auth_asym_id_to_label_asym_id().items())
@@ -898,12 +906,12 @@ def _get_ligand_features(
     idxs = np.where(ligand_struc.chain_id == ligand_chain_id)[0]
     if idxs.shape[0]:
       ligand_features[ligand_chain_id] = {
-          'ligand_atom_positions': ligand_struc.coords[idxs, :].astype(
-              np.float32
+          'ligand_atom_positions': (
+              ligand_struc.coords[idxs, :].astype(np.float32)
           ),
           'ligand_atom_names': ligand_struc.atom_name[idxs].astype(object),
-          'ligand_atom_occupancies': ligand_struc.atom_occupancy[idxs].astype(
-              np.float32
+          'ligand_atom_occupancies': (
+              ligand_struc.atom_occupancy[idxs].astype(np.float32)
           ),
           'ccd_id': ligand_struc.res_name[idxs][0].encode(),
       }

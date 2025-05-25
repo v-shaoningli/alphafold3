@@ -144,7 +144,9 @@ class InferenceTest(test_utils.StructureTestCase):
     }
     self._test_input_json = json.dumps(test_input)
     self._model_config = run_alphafold.make_model_config(
-        return_embeddings=True, flash_attention_implementation='triton'
+        flash_attention_implementation='triton',
+        return_embeddings=True,
+        return_distogram=True,
     )
     self._runner = run_alphafold.ModelRunner(
         config=self._model_config,
@@ -164,8 +166,12 @@ class InferenceTest(test_utils.StructureTestCase):
         featurised_example, jax.random.PRNGKey(0)
     )
     self.assertIsNotNone(result)
-    _, embeddings = self._runner.extract_inference_results_and_maybe_embeddings(
+    inference_results = self._runner.extract_inference_results(
         batch=featurised_example, result=result, target_name='target'
+    )
+    embeddings = self._runner.extract_embeddings(
+        result=result,
+        num_tokens=len(inference_results[0].metadata['token_chain_ids']),
     )
     self.assertLen(embeddings, 2)
 
@@ -232,6 +238,7 @@ class InferenceTest(test_utils.StructureTestCase):
             f'{prefix}_sample-3',
             f'{prefix}_sample-4',
             f'{prefix}_embeddings',
+            f'{prefix}_distogram',
             # Top ranking result.
             expected_confidences_filename,
             expected_model_cif_filename,
@@ -273,9 +280,20 @@ class InferenceTest(test_utils.StructureTestCase):
       # Ligand 7BU has 41 tokens.
       num_tokens = len(fold_input.protein_chains[0].sequence) + 41
       self.assertEqual(embeddings['single_embeddings'].shape, (num_tokens, 384))
+      self.assertEqual(embeddings['single_embeddings'].dtype, np.float16)
       self.assertEqual(
           embeddings['pair_embeddings'].shape, (num_tokens, num_tokens, 128)
       )
+      self.assertEqual(embeddings['pair_embeddings'].dtype, np.float16)
+
+    distogram_dir = os.path.join(output_dir, f'{prefix}_distogram')
+    distogram_filename = f'{fold_input.sanitised_name()}_{prefix}_distogram.npz'
+    self.assertSameElements(os.listdir(distogram_dir), [distogram_filename])
+
+    with open(os.path.join(distogram_dir, distogram_filename), 'rb') as f:
+      distogram = np.load(f)['distogram']
+      self.assertEqual(distogram.shape, (num_tokens, num_tokens, 64))
+      self.assertEqual(distogram.dtype, np.float16)
 
     with open(os.path.join(output_dir, expected_data_json_filename), 'rt') as f:
       actual_input_json = json.load(f)

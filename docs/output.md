@@ -15,8 +15,18 @@ The following structure is used within the output directory:
     `seed-<seed value>_sample-<sample number>`. Each of these directories
     contains a confidence JSON, summary confidence JSON, and the mmCIF with the
     predicted structure.
-*   Embeddings for each seed: `seed-<seed value>_embeddings/embeddings.npz`.
-    Only saved if AlphaFold 3 is run with `--save_embeddings=true`.
+*   Distogram for each seed: `seed-<seed value>_distogram/distogram.npz`. The
+    Numpy zip file contains a single key: `distogram`. The distogram can be
+    large, its shape is `(num_tokens, num_tokens, 64)` and dtype `np.float16`
+    (almost 3 GiB for a 5,000-token input). Only saved if AlphaFold 3 is run
+    with `--save_distogram=true`.
+*   Embeddings for each seed: `seed-<seed value>_embeddings/embeddings.npz`. The
+    Numpy zip file contains 2 keys: `single_embeddings` and `pair_embeddings`.
+    The embeddings can be large, their shapes are `(num_tokens, 384)` for
+    `single_embeddings`, and `(num_tokens, num_tokens, 128)` for
+    `pair_embeddings`. Their dtype is `np.float16` (almost 6 GiB for a
+    5,000-token input). Only saved if AlphaFold 3 is run with
+    `--save_embeddings=true`.
 *   Top-ranking prediction mmCIF: `<job_name>_model.cif`. This file contains the
     predicted coordinates and should be compatible with most structural biology
     tools. We do not provide the output in the PDB format, the CIF file can be
@@ -35,6 +45,8 @@ Fold", that has been ran with 1 seed and 5 samples:
 
 ```txt
 hello_fold/
+├── seed-1234_distogram                        # Only if --save_distogram=true.
+│   └── hello_fold_seed-1234_distogram.npz     # Only if --save_distogram=true.
 ├── seed-1234_embeddings                       # Only if --save_embeddings=true.
 │   └── hello_fold_seed-1234_embeddings.npz    # Only if --save_embeddings=true.
 ├── seed-1234_sample-0/

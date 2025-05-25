@@ -1333,18 +1333,17 @@ class Input:
             (chain_indices[bond_end[0]], bond_end[1] - 1, bond_end[2]),
         ))
 
-    struc = structure.from_sequences_and_bonds(
+    return structure.from_sequences_and_bonds(
         sequences=sequences,
         chain_types=poly_types,
         sequence_formats=formats,
+        chain_ids=ids,
         bonded_atom_pairs=bonded_atom_pairs,
         ccd=ccd,
         name=self.sanitised_name(),
         bond_type=mmcif_names.COVALENT_BOND,
         release_date=None,
     )
-    # Rename chain IDs to the original ones.
-    return struc.rename_chain_ids(dict(zip(struc.chains, ids, strict=True)))
 
   def to_json(self) -> str:
     """Converts Input to an AlphaFold JSON."""

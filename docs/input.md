@@ -486,6 +486,12 @@ opposed to relying on name-matching post-processing heuristics used for
 When setting `unpairedMsa` manually, the `pairedMsa` must be explicitly set to
 an empty string (`""`).
 
+Make sure to run with `--resolve_msa_overlaps=false`. This prevents
+deduplication of the unpaired MSA within each chain against the paired MSA
+sequences. Even if you set `pairedMsa` to an empty string, the query sequence(s)
+will still be added in there and the deduplication procedure could destroy the
+carefully crafted sequence positioning in the unpaired MSA.
+
 For instance, if there are two chains `DEEP` and `MIND` which we want to be
 paired on organism A and C, we can achieve it as follows:
 

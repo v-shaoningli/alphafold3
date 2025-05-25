@@ -38,7 +38,7 @@ RUN mkdir /hmmer_build /hmmer ; \
     wget http://eddylab.org/software/hmmer/hmmer-3.4.tar.gz --directory-prefix /hmmer_build ; \
     (cd /hmmer_build && tar zxf hmmer-3.4.tar.gz && rm hmmer-3.4.tar.gz) ; \
     (cd /hmmer_build/hmmer-3.4 && ./configure --prefix /hmmer) ; \
-    (cd /hmmer_build/hmmer-3.4 && make -j8) ; \
+    (cd /hmmer_build/hmmer-3.4 && make -j) ; \
     (cd /hmmer_build/hmmer-3.4 && make install) ; \
     (cd /hmmer_build/hmmer-3.4/easel && make install) ; \
     rm -R /hmmer_build

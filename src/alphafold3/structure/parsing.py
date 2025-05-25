@@ -93,12 +93,10 @@ def _create_bond_lookup(
 def _get_atom_element(
     ccd: chemical_components.Ccd, res_name: str, atom_name: str
 ) -> str:
-  return (
-      chemical_components.type_symbol(
-          ccd=ccd, res_name=res_name, atom_name=atom_name
-      )
-      or '?'
+  type_symbol = chemical_components.type_symbol(
+      ccd, res_name=res_name, atom_name=atom_name
   )
+  return type_symbol or '?'
 
 
 def _get_representative_atom(
@@ -628,11 +626,13 @@ def expand_sequence(
 
 
 def from_sequences_and_bonds(
+    *,
     sequences: Sequence[str],
     chain_types: Sequence[str],
     sequence_formats: Sequence[SequenceFormat],
     bonded_atom_pairs: Sequence[tuple[BondAtomId, BondAtomId]] | None,
     ccd: chemical_components.Ccd,
+    chain_ids: Sequence[str] | None = None,
     name: str = 'from_sequences_and_bonds',
     bond_type: str | None = None,
     **constructor_args,
@@ -658,6 +658,9 @@ def from_sequences_and_bonds(
       CA. If the atom is not found in the standard atoms for that residue
       (according to the CCD) then an error is raised.
     ccd: The chemical components dictionary.
+    chain_ids: A sequence of chain IDs, one for each chain in `sequences`. If
+      not provided, then the chain IDs will be generated automatically based on
+      sequence indices.
     name: A name for the returned structure.
     bond_type: This type will be used for all bonds in the structure, where type
       follows PDB scheme, e.g. unknown (?), hydrog, metalc, covale, disulf.
@@ -687,7 +690,10 @@ def from_sequences_and_bonds(
   for chain_i, (sequence, curr_chain_type, sequence_format) in enumerate(
       zip(sequences, chain_types, sequence_formats, strict=True)
   ):
-    current_chain_id = mmcif.int_id_to_str_id(chain_i + 1)
+    if chain_ids is not None:
+      current_chain_id = chain_ids[chain_i]
+    else:
+      current_chain_id = mmcif.int_id_to_str_id(chain_i + 1)
     num_chain_residues = 0
     for res_i, full_res_name in enumerate(
         expand_sequence(sequence, curr_chain_type, sequence_format)
@@ -698,7 +704,20 @@ def from_sequences_and_bonds(
       # Look for bonded atoms in the bond lookup and if any are found, add
       # their atom keys to the bond atom_key columns.
       if bond_indices_by_atom_name := bond_lookup.get((chain_i, res_i)):
+        comp_atoms = None
+        if sequence_format != SequenceFormat.LIGAND_SMILES:
+          comp_atoms = set(ccd.get(full_res_name)['_chem_comp_atom.atom_id'])
         for bond_atom_name, bond_indices in bond_indices_by_atom_name.items():
+          if comp_atoms is not None and bond_atom_name not in comp_atoms:
+            raise ValueError(
+                f'Bonded atom "{bond_atom_name}" was not found in the list of'
+                f' atoms of the chemical component {full_res_name}. Valid atom'
+                f' names for {full_res_name} are: {sorted(comp_atoms)}.'
+                ' This is likely caused by an invalid atom name in the bonded'
+                f' atom (chain_id={current_chain_id}, res_id={current_res_id},'
+                f' atom_name={bond_atom_name}) specified in `bondedAtomPairs`'
+                ' in the input JSON.'
+            )
           atom_name.append(bond_atom_name)
           atom_element.append(
               _get_atom_element(
